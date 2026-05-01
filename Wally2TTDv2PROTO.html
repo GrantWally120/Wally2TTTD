@@ -1,0 +1,838 @@
+!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wally2TTDv2 - Zombie Tower Defense</title>
+    <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --panel-color: #1e1e1e;
+            --accent-color: #e63946;
+            --upgrade-color: #38b000;
+            --text-color: #f1faee;
+            --money-color: #ffb703;
+            --ui-font: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --bart-color: #6d5dfc;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--ui-font);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            margin-top: 20px;
+            box-shadow: 0 0 60px rgba(0,0,0,0.8);
+            border: 6px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background-color: #1a1a1a;
+            image-rendering: pixelated;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .stats-bar {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(5px);
+            padding: 12px 25px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-weight: 800;
+            font-size: 1.1rem;
+            pointer-events: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .wave-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .bart-comms-link {
+            position: absolute;
+            top: 85px;
+            right: 15px;
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        #bart-icon {
+            width: 50px;
+            height: 50px;
+            background: var(--bart-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 4px 15px rgba(109, 93, 252, 0.4);
+            transition: transform 0.2s;
+            position: relative;
+        }
+
+        #bart-icon:hover {
+            transform: scale(1.1);
+        }
+
+        #bart-icon::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid var(--bart-color);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        .ai-advisor-panel {
+            width: 260px;
+            background: rgba(20, 20, 25, 0.95);
+            border: 2px solid var(--bart-color);
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 0.9rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #ai-text {
+            font-weight: 500;
+            color: #fff;
+            margin-bottom: 12px;
+            line-height: 1.4;
+            min-height: 40px;
+        }
+
+        .btn-ui {
+            background: #333;
+            color: white;
+            border: 2px solid #555;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-ui:hover:not(:disabled) {
+            background: #444;
+            border-color: var(--accent-color);
+        }
+
+        .btn-ui:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-active {
+            background: var(--accent-color);
+            border-color: #fff;
+        }
+
+        .btn-sparkle {
+            background: linear-gradient(135deg, #6d5dfc, #4a3fd4);
+            border: none;
+            color: white;
+            font-size: 0.8rem;
+            width: 100%;
+            padding: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #sell-btn {
+            background: #9b2226;
+            border-color: #ae2012;
+            color: white;
+            padding: 4px 12px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        #upgrade-btn {
+            background: var(--upgrade-color);
+            border-color: #2b9348;
+            color: white;
+            padding: 4px 12px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .shop {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 15, 0.9);
+            padding: 12px;
+            border-radius: 14px;
+            display: flex;
+            gap: 12px;
+            pointer-events: auto;
+            border: 2px solid #444;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .shop-item {
+            width: 75px;
+            height: 95px;
+            background: #252525;
+            border: 2px solid #3a3a3a;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .shop-item:hover {
+            background: #333;
+            transform: translateY(-5px);
+            border-color: var(--accent-color);
+        }
+
+        .shop-item.selected {
+            background: #441a1a;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 15px rgba(230, 57, 70, 0.4);
+        }
+
+        .shop-item span {
+            color: var(--money-color);
+            margin-top: 4px;
+            font-size: 13px;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 10, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 64px;
+            margin: 0;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 4px 4px 0px #000;
+        }
+
+        .start-btn {
+            margin-top: 30px;
+            padding: 18px 50px;
+            font-size: 24px;
+            font-weight: 800;
+            background: var(--accent-color);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 6px 0px #9b2226;
+            transition: all 0.1s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-layer">
+            <div class="stats-bar">
+                <div style="color: #ff4d4d">❤️ <span id="health-val">100</span></div>
+                <div style="color: var(--money-color)">💰 <span id="money-val">400</span></div>
+                <div style="color: #a8dadc">⚔️ <span id="wave-val">0</span></div>
+                <button id="upgrade-btn" class="btn-ui" onclick="upgradeTurret()">UPGRADE</button>
+                <button id="sell-btn" class="btn-ui" onclick="sellTurret()">SELL</button>
+            </div>
+
+            <div class="wave-controls">
+                <button id="auto-btn" class="btn-ui" onclick="toggleAuto()">Auto: OFF</button>
+                <button id="wave-btn" class="btn-ui" onclick="startWave()">START WAVE</button>
+            </div>
+
+            <div class="bart-comms-link">
+                <div id="bart-icon" onclick="toggleBartPanel()" title="Commander Bart">
+                    <svg viewBox="0 0 24 24" width="30" height="30" fill="white">
+                        <path d="M12 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm9 7h-6v13h-2v-6h-2v6H9V9H3V7h18v2z"/>
+                    </svg>
+                </div>
+                <div class="ai-advisor-panel" id="bart-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: bold; color: var(--bart-color);">COMMANDER BART</span>
+                        <span onclick="toggleBartPanel()" style="cursor:pointer; color: #666;">✕</span>
+                    </div>
+                    <div id="ai-text">Waiting for data...</div>
+                    <button id="ai-btn" class="btn-ui btn-sparkle" onclick="getStrategyAdvice()">GET ADVICE</button>
+                </div>
+            </div>
+
+            <div class="shop">
+                <div class="shop-item" onclick="selectTurret('pistol', 50, this)">
+                    <svg width="35" height="35" viewBox="0 0 40 40">
+                        <circle cx="20" cy="20" r="14" fill="#6c757d"/>
+                        <rect x="22" y="17" width="10" height="4" fill="#222" rx="1"/>
+                        <rect x="18" y="16" width="6" height="8" fill="#333" rx="1"/>
+                    </svg>
+                    Pistol
+                    <span>50 CR</span>
+                </div>
+                <div class="shop-item" onclick="selectTurret('basic', 150, this)">
+                    <svg width="35" height="35" viewBox="0 0 40 40">
+                        <circle cx="20" cy="20" r="14" fill="#3a6ea5"/>
+                        <rect x="18" y="5" width="4" height="15" fill="#111" rx="2"/>
+                        <circle cx="20" cy="20" r="6" fill="#003566"/>
+                    </svg>
+                    Rifle
+                    <span>150 CR</span>
+                </div>
+                <div class="shop-item" onclick="selectTurret('sniper', 100, this)">
+                    <svg width="35" height="35" viewBox="0 0 40 40">
+                        <circle cx="20" cy="20" r="14" fill="#2d6a4f"/>
+                        <rect x="20" y="2" width="3" height="22" fill="#000" rx="1"/>
+                        <rect x="18" y="8" width="7" height="3" fill="#000" rx="1"/>
+                        <circle cx="20" cy="20" r="5" fill="#1b4332"/>
+                    </svg>
+                    Sniper
+                    <span>100 CR</span>
+                </div>
+                <div class="shop-item" onclick="selectTurret('shotgun', 150, this)">
+                    <svg width="35" height="35" viewBox="0 0 40 40">
+                        <circle cx="20" cy="20" r="14" fill="#bc4749"/>
+                        <rect x="15" y="6" width="4" height="14" fill="#222" rx="1"/>
+                        <rect x="21" y="6" width="4" height="14" fill="#222" rx="1"/>
+                        <circle cx="20" cy="20" r="6" fill="#6a040f"/>
+                    </svg>
+                    Shotgun
+                    <span>150 CR</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="overlay">
+            <h1 id="overlay-title">Wally2TTDv2</h1>
+            <p id="overlay-desc" style="font-size: 1.2rem; color: #aaa;">Wave Defense System</p>
+            <button class="start-btn" onclick="startGame()">START DEFENSE</button>
+        </div>
+    </div>
+
+    <script>
+        const apiKey = ""; 
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const TILE_SIZE = 40;
+        const GRID_WIDTH = 20;
+        const GRID_HEIGHT = 15;
+        canvas.width = GRID_WIDTH * TILE_SIZE;
+        canvas.height = GRID_HEIGHT * TILE_SIZE;
+
+        let gameActive = false;
+        let health = 100;
+        let credits = 400;
+        let wave = 0;
+        let isAuto = false;
+        let isWaveRunning = false;
+        let selectedTurretType = null;
+        let selectedTurretCost = 0;
+        let lastMousePos = { x: 0, y: 0 };
+        let activeTurret = null; 
+
+        const UPGRADE_COST_MULTIPLIER = 1.20; // Changed from 1.15 to 1.20
+
+        const path = [
+            {x: 0, y: 7}, {x: 5, y: 7}, {x: 5, y: 3}, 
+            {x: 12, y: 3}, {x: 12, y: 11}, {x: 17, y: 11}, {x: 17, y: 7}, {x: 19, y: 7}
+        ];
+
+        let zombies = [];
+        let turrets = [];
+        let projectiles = [];
+        let particles = [];
+        let grassPattern, roadPattern;
+
+        const turretConfigs = {
+            pistol: { range: 110, fireRate: 40, damage: 5, color: '#adb5bd', bulletSpeed: 6, cost: 50 },
+            basic: { range: 140, fireRate: 35, damage: 15, color: '#4cc9f0', bulletSpeed: 7, cost: 150 },
+            sniper: { range: 340, fireRate: 120, damage: 30, color: '#2ec4b6', bulletSpeed: 18, cost: 100 },
+            shotgun: { range: 85, fireRate: 70, damage: 20, color: '#e63946', bulletSpeed: 5, multi: 5, falloff: true, cost: 150 }
+        };
+
+        function toggleBartPanel() {
+            const panel = document.getElementById('bart-panel');
+            panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+        }
+
+        async function fetchGemini(prompt, systemInstruction) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+            };
+
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    }
+                } catch (err) {}
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+            }
+            return "Connection lost. Keep firing.";
+        }
+
+        async function getStrategyAdvice() {
+            const aiText = document.getElementById('ai-text');
+            const aiBtn = document.getElementById('ai-btn');
+            aiBtn.disabled = true;
+            aiText.innerText = "Analyzing...";
+
+            const turretSummary = turrets.reduce((acc, t) => {
+                const label = `${t.type}${t.level > 1 ? 'T2' : ''}`;
+                acc[label] = (acc[label] || 0) + 1;
+                return acc;
+            }, {});
+
+            const prompt = `Wave: ${wave}. HP: ${health}. Credits: ${credits}. Turrets: ${JSON.stringify(turretSummary)}. Monsters: ${zombies.length}. What now?`;
+            const systemPrompt = "You are Commander Bart. Give short 5-word tactical orders. Mention Pistol, Rifle, Sniper, Shotgun or Upgrades specifically.";
+
+            try {
+                const advice = await fetchGemini(prompt, systemPrompt);
+                aiText.innerText = advice;
+            } catch (err) {
+                aiText.innerText = "Hold the line, soldier!";
+            } finally {
+                aiBtn.disabled = false;
+            }
+        }
+
+        function initPatterns() {
+            const g = document.createElement('canvas');
+            g.width = 40; g.height = 40;
+            const gc = g.getContext('2d');
+            gc.fillStyle = '#2d5a27'; gc.fillRect(0,0,40,40);
+            for(let i=0; i<8; i++) { gc.fillStyle = '#3a6b35'; gc.fillRect(Math.random()*40, Math.random()*40, 2, 2); }
+            grassPattern = ctx.createPattern(g, 'repeat');
+
+            const r = document.createElement('canvas');
+            r.width = 40; r.height = 40;
+            const rc = r.getContext('2d');
+            rc.fillStyle = '#444'; rc.fillRect(0,0,40,40);
+            rc.fillStyle = '#4a4a4a'; rc.fillRect(2, 2, 36, 36);
+            roadPattern = ctx.createPattern(r, 'repeat');
+        }
+
+        class Zombie {
+            constructor(waveNum) {
+                this.x = path[0].x * TILE_SIZE + TILE_SIZE / 2;
+                this.y = path[0].y * TILE_SIZE + TILE_SIZE / 2;
+                this.pathIndex = 0;
+                this.frame = 0;
+                this.reachedEnd = false;
+                const mult = 1 + (waveNum * 0.15);
+                
+                const rand = Math.random();
+                if (rand > 0.88) { 
+                    this.maxHealth = 25 * mult; this.speed = 0.5; this.color = '#7f8c8d'; this.size = 16; this.reward = 25; this.type = 'tank';
+                } else if (rand > 0.7) { 
+                    this.maxHealth = 12 * mult; this.speed = 1.3; this.color = '#2ecc71'; this.size = 9; this.reward = 12; this.type = 'sprinter';
+                } else { 
+                    this.maxHealth = 18 * mult; this.speed = 0.85; this.color = '#27ae60'; this.size = 12; this.reward = 10; this.type = 'normal';
+                }
+                this.health = this.maxHealth;
+            }
+
+            update() {
+                const targetPoint = path[this.pathIndex + 1];
+                if (!targetPoint) return;
+                const tx = targetPoint.x * TILE_SIZE + TILE_SIZE / 2;
+                const ty = targetPoint.y * TILE_SIZE + TILE_SIZE / 2;
+                const dx = tx - this.x;
+                const dy = ty - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                this.frame += 0.1;
+
+                if (dist <= this.speed) {
+                    this.x = tx; this.y = ty; this.pathIndex++;
+                    if (this.pathIndex >= path.length - 1) {
+                        health -= (this.type === 'tank' ? 20 : 10);
+                        updateUI();
+                        this.reachedEnd = true;
+                        if (health <= 0) endGame();
+                    }
+                } else {
+                    this.x += (dx / dist) * this.speed;
+                    this.y += (dy / dist) * this.speed;
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.beginPath(); ctx.ellipse(this.x, this.y + 6, this.size, this.size/3, 0, 0, Math.PI*2); ctx.fill();
+                const bob = Math.sin(this.frame) * 2;
+                ctx.fillStyle = this.color;
+                ctx.beginPath(); ctx.arc(this.x, this.y + bob, this.size, 0, Math.PI*2); ctx.fill();
+                
+                const barWidth = 24;
+                ctx.fillStyle = '#000'; ctx.fillRect(this.x - barWidth/2, this.y - 22, barWidth, 4);
+                const healthPercent = Math.max(0, this.health) / this.maxHealth;
+                ctx.fillStyle = '#0f0'; 
+                ctx.fillRect(this.x - barWidth/2, this.y - 22, barWidth * healthPercent, 4);
+            }
+        }
+
+        class Turret {
+            constructor(x, y, type) {
+                this.x = x; this.y = y; this.type = type;
+                this.config = {...turretConfigs[type]};
+                this.level = 1;
+                this.cooldown = 0; this.angle = 0;
+            }
+            upgrade() {
+                const upgradeCost = Math.floor(this.config.cost * UPGRADE_COST_MULTIPLIER);
+                if (credits >= upgradeCost && this.level < 2) {
+                    credits -= upgradeCost;
+                    this.level++;
+                    this.config.damage *= 1.8;
+                    this.config.range += 20;
+                    updateUI();
+                    createParticles(this.x, this.y, '#fff', 15);
+                }
+            }
+            update() {
+                if (this.cooldown > 0) this.cooldown--;
+                let nearest = this.config.range;
+                let target = null;
+                for (let z of zombies) {
+                    if (z.health <= 0 || z.reachedEnd) continue;
+                    const d = Math.sqrt((z.x-this.x)**2 + (z.y-this.y)**2);
+                    if (d < nearest) { nearest = d; target = z; }
+                }
+                if (target) {
+                    this.angle = Math.atan2(target.y-this.y, target.x-this.x);
+                    if (this.cooldown <= 0) {
+                        if (this.config.multi) {
+                            for(let i=0; i<this.config.multi; i++) projectiles.push(new Projectile(this.x, this.y, this.angle+(i-2)*0.15, this.config));
+                        } else projectiles.push(new Projectile(this.x, this.y, this.angle, this.config));
+                        this.cooldown = this.config.fireRate;
+                    }
+                }
+            }
+            draw() {
+                if (activeTurret === this) {
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.config.range, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.08)"; ctx.fill();
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"; ctx.setLineDash([5, 5]); ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                ctx.save(); ctx.translate(this.x, this.y);
+                const size = this.level > 1 ? 18 : 16;
+                ctx.fillStyle = '#333'; ctx.beginPath(); ctx.roundRect(-size, -size, size*2, size*2, 4); ctx.fill();
+                
+                if (this.level > 1) {
+                    ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2; ctx.strokeRect(-size, -size, size*2, size*2);
+                }
+
+                ctx.rotate(this.angle); ctx.fillStyle = '#111'; 
+                ctx.fillRect(4, -4, this.level > 1 ? 20 : 15, 8);
+                
+                ctx.fillStyle = this.config.color; ctx.beginPath(); ctx.arc(0,0,this.level > 1 ? 12 : 10, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, angle, config) {
+                this.sx = x; this.sy = y; this.x = x; this.y = y;
+                this.vx = Math.cos(angle) * config.bulletSpeed;
+                this.vy = Math.sin(angle) * config.bulletSpeed;
+                this.dmg = config.damage; this.color = config.color;
+                this.life = 120; this.falloff = config.falloff;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy; this.life--;
+                const d = Math.sqrt((this.x-this.sx)**2 + (this.y-this.sy)**2);
+                for (let z of zombies) {
+                    if (z.health <= 0 || z.reachedEnd) continue;
+                    if (Math.sqrt((z.x-this.x)**2 + (z.y-this.y)**2) < z.size+4) {
+                        let fDmg = this.dmg;
+                        if (this.falloff) fDmg = Math.max(this.dmg * 0.4, this.dmg * (1 - (d / 150))); 
+                        z.health -= fDmg;
+                        createParticles(this.x, this.y, z.color, 4);
+                        this.life = 0; break;
+                    }
+                }
+            }
+            draw() {
+                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI*2); ctx.fill();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y;
+                this.vx = (Math.random()-0.5)*4; this.vy = (Math.random()-0.5)*4;
+                this.life = 15; this.color = color;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.life--; }
+            draw() { ctx.fillStyle = this.color; ctx.globalAlpha = this.life/15; ctx.fillRect(this.x, this.y, 2, 2); ctx.globalAlpha = 1; }
+        }
+
+        function createParticles(x, y, color, count) { for(let i=0; i<count; i++) particles.push(new Particle(x, y, color)); }
+
+        function updateUI() {
+            document.getElementById('health-val').innerText = Math.max(0, Math.ceil(health));
+            document.getElementById('money-val').innerText = Math.floor(credits);
+            document.getElementById('wave-val').innerText = wave;
+            document.getElementById('wave-btn').disabled = isWaveRunning;
+
+            const sellBtn = document.getElementById('sell-btn');
+            const upgradeBtn = document.getElementById('upgrade-btn');
+            
+            if (activeTurret) {
+                const refund = Math.floor(activeTurret.config.cost * 0.4);
+                sellBtn.innerText = `SELL (+${refund})`;
+                sellBtn.style.display = 'block';
+
+                if (activeTurret.level < 2) {
+                    const cost = Math.floor(activeTurret.config.cost * UPGRADE_COST_MULTIPLIER);
+                    upgradeBtn.innerText = `UPGRADE (T2: ${cost})`;
+                    upgradeBtn.style.display = 'block';
+                    upgradeBtn.disabled = credits < cost;
+                } else {
+                    upgradeBtn.style.display = 'none';
+                }
+            } else {
+                sellBtn.style.display = 'none';
+                upgradeBtn.style.display = 'none';
+            }
+        }
+
+        function toggleAuto() {
+            isAuto = !isAuto;
+            const btn = document.getElementById('auto-btn');
+            btn.innerText = `Auto: ${isAuto ? 'ON' : 'OFF'}`;
+            btn.classList.toggle('btn-active', isAuto);
+            if (isAuto && !isWaveRunning && zombies.length === 0) startWave();
+        }
+
+        function startWave() {
+            if (isWaveRunning) return;
+            isWaveRunning = true;
+            wave++;
+            updateUI();
+            let count = 6 + (wave * 2);
+            let spawned = 0;
+            const interval = setInterval(() => {
+                if (!gameActive || spawned >= count) { clearInterval(interval); return; }
+                zombies.push(new Zombie(wave));
+                spawned++;
+            }, Math.max(300, 900 - wave * 20));
+        }
+
+        function selectTurret(type, cost, el) {
+            activeTurret = null; 
+            if (selectedTurretType === type) {
+                selectedTurretType = null;
+                el.classList.remove('selected');
+            } else {
+                selectedTurretType = type;
+                selectedTurretCost = cost;
+                document.querySelectorAll('.shop-item').forEach(i => i.classList.remove('selected'));
+                el.classList.add('selected');
+            }
+            updateUI();
+        }
+
+        function sellTurret() {
+            if (!activeTurret) return;
+            credits += Math.floor(activeTurret.config.cost * 0.4);
+            turrets = turrets.filter(t => t !== activeTurret);
+            activeTurret = null;
+            updateUI();
+        }
+
+        function upgradeTurret() {
+            if (!activeTurret) return;
+            activeTurret.upgrade();
+        }
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            lastMousePos.x = e.clientX - rect.left;
+            lastMousePos.y = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const tx = Math.floor(mouseX / TILE_SIZE);
+            const ty = Math.floor(mouseY / TILE_SIZE);
+            
+            const clickedTurret = turrets.find(t => 
+                Math.floor(t.x/TILE_SIZE) === tx && Math.floor(t.y/TILE_SIZE) === ty
+            );
+
+            if (clickedTurret) {
+                activeTurret = clickedTurret;
+                selectedTurretType = null;
+                document.querySelectorAll('.shop-item').forEach(i => i.classList.remove('selected'));
+                updateUI();
+                return;
+            } else {
+                activeTurret = null;
+                updateUI();
+            }
+
+            if (!selectedTurretType || credits < selectedTurretCost) return;
+
+            const onPath = path.some((p, i) => {
+                if (i === 0) return false;
+                const p1 = path[i-1], p2 = p;
+                return tx >= Math.min(p1.x, p2.x) && tx <= Math.max(p1.x, p2.x) &&
+                       ty >= Math.min(p1.y, p2.y) && ty <= Math.max(p1.y, p2.y);
+            });
+
+            const alreadyHasTurret = turrets.some(t => Math.floor(t.x/TILE_SIZE) === tx && Math.floor(t.y/TILE_SIZE) === ty);
+
+            if (!onPath && !alreadyHasTurret) {
+                credits -= selectedTurretCost;
+                turrets.push(new Turret(tx*TILE_SIZE+20, ty*TILE_SIZE+20, selectedTurretType));
+                updateUI();
+            }
+        });
+
+        function drawPlacementPreview() {
+            if (!selectedTurretType) return;
+            const tx = Math.floor(lastMousePos.x / TILE_SIZE) * TILE_SIZE;
+            const ty = Math.floor(lastMousePos.y / TILE_SIZE) * TILE_SIZE;
+            const config = turretConfigs[selectedTurretType];
+            ctx.beginPath(); ctx.arc(tx + 20, ty + 20, config.range, 0, Math.PI * 2);
+            ctx.fillStyle = credits >= selectedTurretCost ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 0, 0, 0.1)";
+            ctx.fill(); ctx.strokeStyle = "rgba(255, 255, 255, 0.4)"; ctx.stroke();
+            ctx.globalAlpha = 0.5; ctx.fillStyle = '#333'; ctx.beginPath(); ctx.roundRect(tx + 4, ty + 4, 32, 32, 4); ctx.fill(); ctx.globalAlpha = 1.0;
+        }
+
+        function gameLoop() {
+            if (!gameActive) return;
+            ctx.fillStyle = grassPattern; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.strokeStyle = roadPattern; ctx.lineWidth = TILE_SIZE; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            ctx.beginPath(); ctx.moveTo(path[0].x*40+20, path[0].y*40+20);
+            for(let i=1; i<path.length; i++) ctx.lineTo(path[i].x*40+20, path[i].y*40+20);
+            ctx.stroke();
+
+            for (let i = zombies.length - 1; i >= 0; i--) {
+                const z = zombies[i]; z.update(); z.draw();
+                if (z.health <= 0) { 
+                    credits += z.reward; createParticles(z.x, z.y, z.color, 12); updateUI(); zombies.splice(i, 1); 
+                } else if (z.reachedEnd) zombies.splice(i, 1);
+            }
+
+            if (isWaveRunning && zombies.length === 0) {
+                isWaveRunning = false; updateUI();
+                if (isAuto) setTimeout(startWave, 2000);
+            }
+
+            for (let t of turrets) { t.update(); t.draw(); }
+            drawPlacementPreview();
+
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                projectiles[i].update(); projectiles[i].draw();
+                if (projectiles[i].life <= 0) projectiles.splice(i,1);
+            }
+            for (let i = particles.length-1; i >= 0; i--) {
+                particles[i].update(); particles[i].draw();
+                if (particles[i].life <= 0) particles.splice(i,1);
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            document.getElementById('overlay').style.display = 'none';
+            health = 100; credits = 400; wave = 0; zombies = []; turrets = []; gameActive = true;
+            activeTurret = null; selectedTurretType = null;
+            document.querySelectorAll('.shop-item').forEach(i => i.classList.remove('selected'));
+            updateUI(); gameLoop();
+        }
+
+        function endGame() {
+            gameActive = false;
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('overlay-title').innerText = "SYSTEM FAILURE";
+            document.getElementById('ai-text').innerText = "Command lost. Wave overwhelmed.";
+        }
+
+        initPatterns();
+        updateUI();
+    </script>
+</body>
+</html>
